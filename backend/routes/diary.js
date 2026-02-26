@@ -21,6 +21,22 @@ const authMiddleware = (req, res, next) => {
         res.status(401).json({ message: 'Token is invalid' });
     }
 };
+
+// GET all diary entries for a specific month (format: YYYY-MM)
+router.get('/month/:yearMonth', authMiddleware, async (req, res) => {
+    try {
+        const { yearMonth } = req.params;
+        const [entries] = await pool.execute(
+            'SELECT * FROM diary_entries WHERE user_id = ? AND entry_date LIKE ? ORDER BY entry_date ASC',
+            [req.user.id, `${yearMonth}-%`]
+        );
+
+        res.json({ message: 'Monthly diary entries retrieved successfully', data: entries });
+    } catch (error) {
+        console.error('Fetch monthly diary error:', error);
+        res.status(500).json({ message: 'Failed to fetch monthly diary entries' });
+    }
+});
 router.get('/:date', authMiddleware, async (req, res) => {
     try {
         const { date } = req.params;
