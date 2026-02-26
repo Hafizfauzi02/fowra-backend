@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from './api';
-import { Users, Sprout, BookText, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Users, Sprout, BookText, ChevronRight, ArrowLeft, Trash2 } from 'lucide-react';
 import StudentDetailModal from './StudentDetailModal';
 
 function App() {
@@ -26,6 +26,20 @@ function App() {
     }
   };
 
+  const handleDeleteStudent = async (e, studentId, studentName) => {
+    e.stopPropagation(); // prevent opening the modal
+    if (window.confirm(`Are you SURE you want to delete ${studentName} and ALL of their plants and diaries? This cannot be undone.`)) {
+      try {
+        await api.deleteStudent(studentId);
+        // Refresh the list
+        loadDashboard();
+      } catch (error) {
+        alert("Failed to delete student. Check console.");
+        console.error(error);
+      }
+    }
+  };
+
   if (loading) {
     return <div className="loading-spinner">Loading Dashboard...</div>;
   }
@@ -42,7 +56,10 @@ function App() {
       {selectedStudent ? (
         <StudentDetailModal
           student={selectedStudent}
-          onBack={() => setSelectedStudent(null)}
+          onBack={() => {
+            setSelectedStudent(null);
+            loadDashboard(); // Refresh stats when coming back
+          }}
         />
       ) : (
         <>
@@ -70,8 +87,15 @@ function App() {
                       <td style={{ padding: '1rem', fontWeight: '600' }}>{student.name}</td>
                       <td style={{ padding: '1rem' }}>{student.class} - {student.year}</td>
                       <td style={{ padding: '1rem', color: 'var(--text-light)' }}>{student.email}</td>
-                      <td style={{ padding: '1rem', textAlign: 'right', color: 'var(--primary)' }}>
-                        <button style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'inherit', fontWeight: '600', marginLeft: 'auto' }}>
+                      <td style={{ padding: '1rem', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
+                        <button
+                          onClick={(e) => handleDeleteStudent(e, student.id, student.name)}
+                          style={{ padding: '0.4rem', color: '#ff4d4f', border: '1px solid #ff4d4f', borderRadius: '6px', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Delete Student"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', fontWeight: '600', backgroundColor: 'transparent', border: 'none' }}>
                           View Details <ChevronRight size={16} />
                         </button>
                       </td>

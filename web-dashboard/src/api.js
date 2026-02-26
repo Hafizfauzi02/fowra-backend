@@ -23,5 +23,13 @@ export const api = {
         const res = await fetch(`${API_BASE_URL}/admin/student/${studentId}/diary`);
         if (!res.ok) throw new Error('Failed to fetch diary');
         return res.json();
+    },
+
+    deleteStudent: async (studentId) => {
+        const res = await fetch(`${API_BASE_URL}/admin/student/${studentId}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error('Failed to delete student');
+        return res.json();
     }
 };

@@ -64,4 +64,35 @@ router.get('/student/:id/diary', async (req, res) => {
   }
 });
 
+// DELETE a student and all their associated data
+router.delete('/student/:id', async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    const { id } = req.params;
+
+    await connection.beginTransaction();
+
+    // Delete child records first to avoid foreign key constraint errors
+    await connection.execute('DELETE FROM diary_entries WHERE user_id = ?', [id]);
+    await connection.execute('DELETE FROM plants WHERE user_id = ?', [id]);
+
+    // Delete the actual user
+    const [result] = await connection.execute('DELETE FROM users WHERE id = ?', [id]);
+
+    await connection.commit();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    res.json({ success: true, message: 'Student and all associated data deleted successfully' });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Delete student error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete student' });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;
