@@ -2,68 +2,66 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
-// HTML template for a simple table view
-const generateHtmlTable = (tableName, rows) => {
-    if (rows.length === 0) return `<p>Table <strong>${tableName}</strong> is empty.</p>`;
+// Enable CORS specifically for the admin routes if needed, 
+// though index.js already has global cors().
 
-    const columns = Object.keys(rows[0]);
+// GET overview stats
+router.get('/stats', async (req, res) => {
+  try {
+    const [userCount] = await pool.execute('SELECT COUNT(*) as count FROM users');
+    const [plantCount] = await pool.execute('SELECT COUNT(*) as count FROM plants');
 
-    let html = `
-    <h2>Table: ${tableName}</h2>
-    <table border="1" cellpadding="8" style="border-collapse: collapse; width: 100%; font-family: sans-serif; margin-bottom: 2rem;">
-      <tr style="background-color: #f2f2f2;">
-        ${columns.map(col => `<th>${col}</th>`).join('')}
-      </tr>
-  `;
+    // Count today's diary entries
+    const today = new Date().toISOString().split('T')[0];
+    const [diaryCount] = await pool.execute('SELECT COUNT(*) as count FROM diary_entries WHERE entry_date = ?', [today]);
 
-    rows.forEach(row => {
-        html += '<tr>';
-        columns.forEach(col => {
-            html += `<td>${row[col] !== null ? row[col] : '<i>NULL</i>'}</td>`;
-        });
-        html += '</tr>';
+    res.json({
+      success: true,
+      data: {
+        totalStudents: userCount[0].count,
+        totalPlants: plantCount[0].count,
+        entriesToday: diaryCount[0].count
+      }
     });
+  } catch (error) {
+    console.error('Stats error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stats' });
+  }
+});
 
-    html += '</table>';
-    return html;
-};
+// GET all students
+router.get('/students', async (req, res) => {
+  try {
+    const [users] = await pool.execute('SELECT id, name, year, class, email, created_at FROM users ORDER BY created_at DESC');
+    res.json({ success: true, data: users });
+  } catch (error) {
+    console.error('Students error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch students' });
+  }
+});
 
-// Route to view all tables and their contents
-router.get('/tables', async (req, res) => {
-    try {
-        let htmlContent = `
-      <html>
-      <head>
-        <title>Database Viewer</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; color: #333; }
-          h1 { color: #2E654D; }
-        </style>
-      </head>
-      <body>
-        <h1>Fowra Database Viewer (fowra_db)</h1>
-        <p>This is a simple viewer for your MySQL database tables.</p>
-        <hr/>
-    `;
+// GET plants for a specific student
+router.get('/student/:id/plants', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [plants] = await pool.execute('SELECT * FROM plants WHERE user_id = ? ORDER BY created_at DESC', [id]);
+    res.json({ success: true, data: plants });
+  } catch (error) {
+    console.error('Student plants error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch plants for student' });
+  }
+});
 
-        // Fetch users table
-        const [users] = await pool.execute('SELECT * FROM users');
-        htmlContent += generateHtmlTable('users', users);
-
-        // Fetch plants table
-        const [plants] = await pool.execute('SELECT * FROM plants');
-        htmlContent += generateHtmlTable('plants', plants);
-
-        htmlContent += `
-      </body>
-      </html>
-    `;
-
-        res.send(htmlContent);
-    } catch (error) {
-        console.error('Error fetching tables:', error);
-        res.status(500).send('Error loading database tables');
-    }
+// GET diary entries for a specific student
+router.get('/student/:id/diary', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [entries] = await pool.execute('SELECT * FROM diary_entries WHERE user_id = ? ORDER BY entry_date DESC', [id]);
+    res.json({ success: true, data: entries });
+  } catch (error) {
+    console.error('Student diary error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch diary entries for student' });
+  }
 });
 
 module.exports = router;
